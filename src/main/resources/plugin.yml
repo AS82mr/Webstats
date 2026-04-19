@@ -1,0 +1,28 @@
+name: webstats
+version: 2.0.0
+main: webstats.webstats
+api-version: 1.21
+author: AS82
+commands:
+  wsreload:
+    description: Reloads the configuration
+    permission: webstats.reload
+  wspurge:
+    description: Deletes ALL data from the database
+    permission: webstats.purge
+  webstats:
+    description: WebStats utility commands.
+    usage: |
+      /webstats load offline - Sync all known player data for the web
+      /webstats skull load - Upload the held player head texture to SFTP
+permissions:
+  webstats.admin:
+    description: Allows access to the webstats reload command.
+    default: op
+  webstats.load.offline:
+    description: Allows scheduling a batch synchronization of all player data from the database.
+    default: op
+  webstats.skull.load:
+    description: Allows uploading the texture of the held player head to the web/SFTP.
+    default: op
+depend: [PlaceholderAPI, NBTAPI]

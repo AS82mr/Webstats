@@ -1,0 +1,100 @@
+# -----------------------< STORAGE SETUP >----------------------- #
+# Choose between "mysql" or "redis"
+storage-type: "redis"
+
+mysql:
+  host: "nugget.bloom.host"
+  port: 3306
+  database: "s59454_dragoncotewebsitatssurvival"
+  username: "u59454_ICFNIWDpZQ"
+  password: "x1MyCGlGCxLPnFChcVqibmuU"
+
+redis:
+  host: "144.76.210.194"
+  port: 25561
+  password: "x1MyCGlGCxLPnFChcVqibmuU" # Leave empty if no password
+  # user: "default" # Optional: Only used for Redis ACLs (v6+)
+
+  # If you don't have enough RAM (e.g., 100MB) for ur Redis server, each player data max takes around 10kB at
+  # the worst scenario let's say 15kB if the tooltips data is so large, to avoid RAM occupation, you can set a ttl
+  # in seconds, so once the player has been inactive for that amount of time, it'll fallback into mysql, so the data won't be totally lost
+  # meaning it'll show a static (non-dynamic) page (index.php instead of redis.php) to avoid data loss, once the player logs back into the
+  # server, it'll automatically switch back to the redis.php to show the dynamic data (In case you have more than 400 MB, 500 MB you should be good to good
+  # considering the fact 500 can store up to 30k players with no issues, so you leave it at -1)
+  ttl: -1
+# -----------------------< SETTINGS >----------------------- #
+# Update interval is in seconds, and only applies for mysql storage-type, since redis won't be struggling anyways (60s and higher is recommended for this)
+update-every: 120
+debug-mode: true
+
+# -----------------------< STATS SECTIONS >----------------------- #
+# ***NOTE***: The amount of placeholders should ALWAYS match the amount definers ((e.g. 3 definers at section '1' and 3 placeholders in section '1')
+# ***NOTE***: You can NOT use the same definer twice, as this is how the website realises the changes for dynamic updating
+
+placeholders:
+  '1':
+    section_title: '&f&lGeneral Stats'
+    phs:
+      - "%cmi_user_playtime_dayst%"
+      - "%mcmmo_power_level%"
+      - "&5&r%battlepass_pass_type% [%battlepass_tier%]"
+      - "&6&r&bK &f/ &4D %deluxecombat_ranking_kd% &7┃ &bRank: &8[&f%deluxecombat_ranking_rank%&8]"
+      - "&7&r%guilds_prefix% %guilds_name%"
+      - "&8&r%luckperms_prefix%"
+      - "&9&r%luckperms_primary_group_name%"
+  '2':
+    section_title: '&6&lCurrencies'
+    phs:
+      - "%cmi_user_balance_formated%"
+      - "[PRIVATE]"
+      - "%coinsengine_balance_raw_afkcoins%"
+  '3':
+    section_title: '&f&lTEST NEWWS'
+    phs:
+      - "[PRIVATE]"
+definers:
+  '1':
+    tags:
+      - "&e⍋ Playtime"
+      - "&b✺ Power Level"
+      - "&b⚜ Battlepass"
+      - "&b🗡 Combat"
+      - "&d♔ Guild"
+      - "&e♛ Rank" # DO NOT change this string unless you don't want to show player ranks on your website below their username, the value can be moved anywhere you want but simply not changed
+      # (Value can be changed but you need to contact us)
+      - "&6⚜ Rank Tag"
+  '2':
+    tags:
+      - "&e💰 Balance"
+      - "&5✦ Gems"
+      - "&6〄 Votes"
+  '3':
+    tags:
+      - "&5✦ Gems"
+
+
+# -----------------------< PROGRESSIVE BARS >----------------------- #
+bars_placeholders:
+  phs:
+    - "%mcmmo_level_swords%"
+    - "%mcmmo_level_axes%"
+    - "%mcmmo_level_acrobatics%"
+    - "%mcmmo_level_archery%"
+    - "%mcmmo_level_agility%"
+
+bars_definers:
+  tags:
+    - "Swords Level"
+    - "Axes Level"
+    - "Acrobatics Level"
+    - "Archery Level"
+    - "Agility Level"
+
+# [NEW] Maximum values for the bars (Use numbers or placeholders)
+bars_max_values:
+  values:
+    - "1000"  # Swords
+    - "1000"  # Axes
+    - "1000"  # Acrobatics
+    - "1000"  # Archery
+    - "1000"  # Agility

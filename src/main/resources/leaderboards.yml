@@ -1,0 +1,29 @@
+leaderboards:
+  wealth:
+    title: "Top Billionaires"
+    # Matches player_stats.placeholder_name exactly as stored by the plugin
+    stat_placeholder: "%cmi_user_balance_formated%"
+    placeholders:
+      - "&6&l1 ⌇ &e&l%cmi_tps_60% &f➯ &a%cmi_tps_60%"
+      - "&6&l2 ⌇ &e&l%cmi_baltop_name_2% &f➯ &a%cmi_baltop_money_2%"
+      - "&6&l3 ⌇ &e&l%cmi_baltop_name_3% &f➯ &a%cmi_baltop_money_3%"
+      - "&6&l4 ⌇ &e&l%cmi_baltop_name_4% &f➯ &a%cmi_baltop_money_4%"
+      - "&6&l5 ⌇ &e&l%cmi_baltop_name_5% &f➯ &a%cmi_baltop_money_5%"
+  playtime:
+    title: "Most Dedicated"
+    stat_placeholder: "%cmi_user_playtime_dayst%"
+    placeholders:
+      - "&b&l1 ⌇ &e&l%coinsengine_top_balance_short_clean_1_gems% &f➯ TEST"
+      - "&b&l2 ⌇ &e&l%coinsengine_top_balance_short_clean_2_gems% &f➯ TEST"
+      - "&b&l3 ⌇ &e&l%coinsengine_top_balance_short_clean_3_gems% &f➯ TEST"
+      - "&b&l4 ⌇ &e&l%coinsengine_top_balance_short_clean_4_gems% &f➯ TEST"
+      - "&b&l5 ⌇ &e&l%coinsengine_top_balance_short_clean_5_gems% &f➯ TEST"
+  power:
+    title: "Strongest Warriors"
+    stat_placeholder: "%mcmmo_power_level%"
+    placeholders:
+      - "&e&l1 ⌇ TEST"
+      - "&e&l2 ⌇ TEST"
+      - "&e&l3 ⌇ TEST"
+      - "&e&l4 ⌇ TEST"
+      - "&e&l5 ⌇ TEST"
