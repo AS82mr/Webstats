@@ -45,7 +45,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class webstats extends JavaPlugin implements Listener {
@@ -151,6 +150,7 @@ public class webstats extends JavaPlugin implements Listener {
                 mysqlStorage.saveProfile(snap);
                 flushed++;
             }
+            getLogger().info("[onDisable] Flushed " + flushed + " profiles to cold storage.");
             if (flushed > 0) getLogger().info("[Shutdown] Flushed " + flushed + " profile(s) to MySQL cold storage.");
         }
 
@@ -324,9 +324,13 @@ public class webstats extends JavaPlugin implements Listener {
                         primaryStorage.saveProfile(profile);
                     }
 
-                    // B. If triggering backup (On Quit), save to MySQL too
-                    if (forceBackup && backupStorage != null) {
-                        backupStorage.saveProfile(profile);
+                    // B. For MySQL Cold Storage (Backup)
+                    if (backupStorage != null) {
+                        // In Hybrid mode, we normally save on Quit via mysqlWriteQueue (startMySQLFlushTask).
+                        // If forceBackup is true (e.g., from wsreload or manually), save immediately.
+                        if (forceBackup || !isRedisMode) {
+                            backupStorage.saveProfile(profile);
+                        }
                     }
                 });
             }
@@ -540,8 +544,8 @@ public class webstats extends JavaPlugin implements Listener {
 
             // Force update everyone
             if (!Bukkit.getOnlinePlayers().isEmpty()) {
-                Bukkit.getOnlinePlayers().forEach(p -> processPlayerUpdate(p, false));
-                sender.sendMessage(ChatColor.GREEN + "Forced data update for all online players.");
+                Bukkit.getOnlinePlayers().forEach(p -> processPlayerUpdate(p, true));
+                sender.sendMessage(ChatColor.GREEN + "Forced data sync to both Hot & Cold storage for all operatives.");
             }
             return true;
         }
@@ -559,6 +563,24 @@ public class webstats extends JavaPlugin implements Listener {
                 sender.sendMessage(ChatColor.GREEN + "Database Purge Complete.");
             });
             return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("ws")) {
+            if (args.length > 0 && args[0].equalsIgnoreCase("debug")) {
+                if (!sender.hasPermission("webstats.admin")) return true;
+                
+                Player target = (args.length > 1) ? Bukkit.getPlayer(args[1]) : (sender instanceof Player ? (Player) sender : null);
+                
+                if (target == null) {
+                    sender.sendMessage(ChatColor.RED + "Specify an online player.");
+                    return true;
+                }
+
+                sender.sendMessage(ChatColor.YELLOW + "Manually triggering DEBUG update for " + target.getName() + "...");
+                processPlayerUpdate(target, true);
+                sender.sendMessage(ChatColor.GREEN + "Pushed profile to both hot and cold storage.");
+                return true;
+            }
         }
         return false;
     }

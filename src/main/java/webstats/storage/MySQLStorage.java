@@ -184,7 +184,12 @@ public class MySQLStorage implements StorageProvider {
                 ps.setString(1, playerName);
                 ps.executeUpdate();
             }
-        } catch (SQLException e) {}
+            if (plugin.getConfig().getBoolean("debug", false)) {
+                System.out.println("[webstats] Incremented search for: " + playerName);
+            }
+        } catch (SQLException e) {
+            System.err.println("[webstats] MySQL incrementSearch failed: " + e.getMessage());
+        }
     }
 
     @Override
