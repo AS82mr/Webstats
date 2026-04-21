@@ -55,19 +55,24 @@ public class MySQLStorage implements StorageProvider {
             ensureConnection();
             connection.setAutoCommit(false);
 
-            // Stats: upsert (update in-place, no DELETE window where website sees empty rows)
+            // 1. ATOMIC DELETE: Clear previous state entirely.
+            // Since autoCommit=false, website users will NOT see an empty state because MySQL
+            // uses Read-Committed isolation; they will see the old data until commit() fires below.
+            try (PreparedStatement psDelStats = connection.prepareStatement("DELETE FROM player_stats WHERE player_name = ?");
+                 PreparedStatement psDelBars = connection.prepareStatement("DELETE FROM progressive_bars WHERE player_name = ?");
+                 PreparedStatement psDelInv = connection.prepareStatement("DELETE FROM player_inventories WHERE player_name = ?")) {
+                 
+                psDelStats.setString(1, p.name); psDelStats.executeUpdate();
+                psDelBars.setString(1, p.name); psDelBars.executeUpdate();
+                psDelInv.setString(1, p.name); psDelInv.executeUpdate();
+            }
+
+            // 2. Stats: Insert fresh state
             if (!p.stats.isEmpty()) {
                 try (PreparedStatement ps = connection.prepareStatement(
                         "INSERT INTO player_stats (player_name, placeholder_name, placeholder_value, placeholder_value_clean, " +
                         "placeholder_definer, placeholder_definer_clean, section_index, section_title, order_index) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE " +
-                        "placeholder_value = VALUES(placeholder_value), " +
-                        "placeholder_value_clean = VALUES(placeholder_value_clean), " +
-                        "placeholder_definer = VALUES(placeholder_definer), " +
-                        "placeholder_definer_clean = VALUES(placeholder_definer_clean), " +
-                        "placeholder_name = VALUES(placeholder_name), " +
-                        "section_title = VALUES(section_title)")) {
+                        "VALUES (?,?,?,?,?,?,?,?,?)")) {
                     for (StatEntry s : p.stats) {
                         ps.setString(1, p.name); ps.setString(2, s.name); ps.setString(3, s.valueHtml); ps.setString(4, s.valueClean); ps.setString(5, s.definer); ps.setString(6, s.definerClean); ps.setInt(7, s.sectionIndex); ps.setString(8, s.sectionTitle); ps.setInt(9, s.orderIndex);
                         ps.addBatch();
@@ -76,16 +81,11 @@ public class MySQLStorage implements StorageProvider {
                 }
             }
 
-            // Bars: upsert (ON DUPLICATE KEY UPDATE — no DELETE gap)
+            // 3. Bars: Insert fresh state
             if (!p.bars.isEmpty()) {
                 try (PreparedStatement ps = connection.prepareStatement(
                         "INSERT INTO progressive_bars (player_name, placeholder_name, placeholder_value, placeholder_max, placeholder_definer, order_index) " +
-                        "VALUES (?,?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE " +
-                        "placeholder_name = VALUES(placeholder_name), " +
-                        "placeholder_value = VALUES(placeholder_value), " +
-                        "placeholder_max = VALUES(placeholder_max), " +
-                        "placeholder_definer = VALUES(placeholder_definer)")) {
+                        "VALUES (?,?,?,?,?,?)")) {
                     for (BarEntry b : p.bars) {
                         ps.setString(1, p.name); ps.setString(2, b.name); ps.setString(3, b.value); ps.setString(4, b.maxValue); ps.setString(5, b.definer); ps.setInt(6, b.orderIndex);
                         ps.addBatch();
@@ -94,17 +94,17 @@ public class MySQLStorage implements StorageProvider {
                 }
             }
 
-            // Inventory: upsert (ON DUPLICATE KEY UPDATE — no DELETE gap)
+            // 4. Inventory: Insert fresh state
             if (!p.inventory.isEmpty()) {
+                java.util.Set<Integer> seenSlots = new java.util.HashSet<>();
                 try (PreparedStatement ps = connection.prepareStatement(
                         "INSERT INTO player_inventories (player_name, slot, item_type, item_amount, item_texture, item_tooltip) " +
-                        "VALUES (?,?,?,?,?,?) " +
-                        "ON DUPLICATE KEY UPDATE " +
-                        "item_type = VALUES(item_type), " +
-                        "item_amount = VALUES(item_amount), " +
-                        "item_texture = VALUES(item_texture), " +
-                        "item_tooltip = VALUES(item_tooltip)")) {
+                        "VALUES (?,?,?,?,?,?)")) {
                     for (InventoryEntry i : p.inventory) {
+                        // Prevent identical slots crashing the batch if other plugins duplicate things
+                        if (seenSlots.contains(i.slot)) continue;
+                        seenSlots.add(i.slot);
+
                         ps.setString(1, p.name); ps.setInt(2, i.slot); ps.setString(3, i.type); ps.setInt(4, i.amount); ps.setString(5, i.texture); ps.setString(6, i.tooltip);
                         ps.addBatch();
                     }

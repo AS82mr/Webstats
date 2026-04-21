@@ -366,14 +366,17 @@ public class webstats extends JavaPlugin implements Listener {
             Gson gson = new Gson();
             JsonObject root = new JsonObject();
 
+            // Use any online player as PAPI context — many expansions (CMI, CoinsEngine) reject null
+            Player ctx = Bukkit.getOnlinePlayers().isEmpty() ? null : Bukkit.getOnlinePlayers().iterator().next();
+
             for (String key : lbSection.getKeys(false)) {
                 String title = lbSection.getString(key + ".title", key);
                 List<String> placeholders = lbSection.getStringList(key + ".placeholders");
 
-                // Resolve each placeholder line server-side via PlaceholderAPI (null player = server context)
+                // Resolve each placeholder line server-side via PlaceholderAPI
                 com.google.gson.JsonArray rows = new com.google.gson.JsonArray();
                 for (String line : placeholders) {
-                    String resolved = PlaceholderAPI.setPlaceholders(null, line);
+                    String resolved = PlaceholderAPI.setPlaceholders(ctx, line);
                     rows.add(resolved); // color codes kept intact (&x codes)
                 }
 
@@ -662,47 +665,76 @@ public class webstats extends JavaPlugin implements Listener {
     private String getSmartItemTexture(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return "";
 
-        // 1. Check for Custom Skull Texture (NBT)
         if (item.getType() == Material.PLAYER_HEAD || item.getType() == Material.PLAYER_WALL_HEAD) {
+            
+            Bukkit.getLogger().info("[Webstats Debug] Processing HEAD item...");
             try {
-                NBTItem nbti = new NBTItem(item);
-                if (nbti.hasTag("SkullOwner")) {
-                    NBTCompound skullOwner = nbti.getCompound("SkullOwner");
-                    if (skullOwner != null && skullOwner.hasTag("Properties")) {
-                        NBTCompound props = skullOwner.getCompound("Properties");
-                        if (props != null && props.hasTag("textures")) {
-                            NBTCompoundList textures = props.getCompoundList("textures");
-                            if (!textures.isEmpty()) {
-                                String b64 = textures.get(0).getString("Value");
-                                String decoded = new String(Base64.getDecoder().decode(b64));
-                                // Extract URL from JSON
-                                Matcher m = Pattern.compile("url\":\\s*\"(http[^\"]+)").matcher(decoded);
-                                if (m.find()) {
-                                    // Return a special prefix so PHP knows to cache it
-                                    String url = m.group(1);
-                                    // We can send the full URL or just the ID. Let's send full for safety.
-                                    // Format: custom_head:<ID> (e.g. http://textures.minecraft.net/texture/THIS_PART)
-                                    String textureId = url.substring(url.lastIndexOf('/') + 1);
-                                    return "custom_head:" + textureId;
+                 Bukkit.getLogger().info("[Webstats Debug] Raw NBT: " + new NBTItem(item).toString());
+            } catch (Exception e) {}
+
+            if (item.getItemMeta() instanceof SkullMeta meta) {
+                
+                // 1. Spigot 1.18+ API check for injected Profiles (Bypasses NBT limits, works with XSeries in 1.21+)
+                try {
+                    org.bukkit.profile.PlayerProfile profile = meta.getOwnerProfile();
+                    if (profile != null && profile.getTextures() != null) {
+                        java.net.URL url = profile.getTextures().getSkin();
+                        if (url != null) {
+                            String fullUrl = url.toString();
+                            String textureId = fullUrl.substring(fullUrl.lastIndexOf('/') + 1);
+                            return "custom_head:" + textureId;
+                        }
+                    }
+                } catch (Throwable e) {
+                    Bukkit.getLogger().info("[Webstats Debug] API profile failed: " + e.getMessage());
+                }
+
+                // 2. Fallback: try raw NBT parsing (for older items or specific formats)
+                try {
+                    NBTItem nbti = new NBTItem(item);
+                    if (nbti.hasTag("SkullOwner")) {
+                        NBTCompound skullOwner = nbti.getCompound("SkullOwner");
+                        if (skullOwner != null && skullOwner.hasTag("Properties")) {
+                            NBTCompound props = skullOwner.getCompound("Properties");
+                            if (props != null && props.hasTag("textures")) {
+                                NBTCompoundList textures = props.getCompoundList("textures");
+                                if (!textures.isEmpty()) {
+                                    String b64 = textures.get(0).getString("Value");
+                                    String decoded = new String(java.util.Base64.getDecoder().decode(b64));
+                                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("url\":\\s*\"(http[^\"]+)").matcher(decoded);
+                                    if (m.find()) {
+                                        String url = m.group(1);
+                                        return "custom_head:" + url.substring(url.lastIndexOf('/') + 1);
+                                    }
                                 }
                             }
                         }
+                        // Alternate string NBT tag
+                        String stringOwner = nbti.getString("SkullOwner");
+                        if (stringOwner != null && !stringOwner.isEmpty() && stringOwner.matches("[a-zA-Z0-9_]{3,16}")) {
+                            if (!stringOwner.equals("XSeries")) return "https://api.mineatar.io/head/" + stringOwner + "?scale=16";
+                        }
                     }
-                }
-            } catch (Exception ignored) {}
+                } catch (Throwable ignored) {}
 
-            // 2. Fallback to Player Name (Standard Head)
-            if (item.getItemMeta() instanceof SkullMeta meta) {
+                // 3. Fallback: standard player head name
                 if (meta.hasOwner()) {
-                    // Use Name if UUID missing (Offline server compatibility)
-                    String id = meta.getOwner();
-                    if (meta.getOwningPlayer() != null && meta.getOwningPlayer().getName() != null) {
-                        id = meta.getOwningPlayer().getName();
+                    String name = null;
+                    if (meta.getOwningPlayer() != null) name = meta.getOwningPlayer().getName();
+                    else if (meta.getOwner() != null) name = meta.getOwner();
+                    
+                    if (name != null) {
+                        // Block libraries dummy names that bypass rate limits
+                        if (name.equals("XSeries") || name.equalsIgnoreCase("CS-CoreLib")) {
+                            return "custom_head:unknown";
+                        }
+                        if (name.matches("[a-zA-Z0-9_]{1,16}")) {
+                            return "https://api.mineatar.io/head/" + name + "?scale=16";
+                        }
                     }
-                    return "https://minotar.net/avatar/" + id;
                 }
             }
-            return "https://minotar.net/avatar/Steve";
+            return "custom_head:unknown";
         }
 
         // 3. Standard Item
