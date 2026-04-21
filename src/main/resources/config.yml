@@ -1,6 +1,7 @@
 # -----------------------< STORAGE SETUP >----------------------- #
 # Choose between "mysql" or "redis"
 storage-type: "redis"
+debug: false
 
 mysql:
   host: "nugget.bloom.host"

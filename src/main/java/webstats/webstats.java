@@ -572,6 +572,7 @@ public class webstats extends JavaPlugin implements Listener {
         for (InventoryEntry i : p.inventory) {
             result = 31 * result + i.slot + (i.type != null ? i.type.hashCode() : 0) + i.amount;
         }
+        result = 31 * result + p.heldSlot;
         return result;
     }
 
@@ -655,6 +656,7 @@ public class webstats extends JavaPlugin implements Listener {
         // including the offhand at index 40. Do NOT add slot 40 again manually —
         // that causes a duplicate PK crash in MySQL (player_name, slot).
 
+        profile.heldSlot = player.getInventory().getHeldItemSlot();
         return profile;
     }
 
@@ -667,9 +669,10 @@ public class webstats extends JavaPlugin implements Listener {
 
         if (item.getType() == Material.PLAYER_HEAD || item.getType() == Material.PLAYER_WALL_HEAD) {
             
-            Bukkit.getLogger().info("[Webstats Debug] Processing HEAD item...");
+            boolean debug = getConfig().getBoolean("debug", false);
+            if (debug) Bukkit.getLogger().info("[Webstats Debug] Processing HEAD item...");
             try {
-                 Bukkit.getLogger().info("[Webstats Debug] Raw NBT: " + new NBTItem(item).toString());
+                 if (debug) Bukkit.getLogger().info("[Webstats Debug] Raw NBT: " + new NBTItem(item).toString());
             } catch (Exception e) {}
 
             if (item.getItemMeta() instanceof SkullMeta meta) {
@@ -686,7 +689,7 @@ public class webstats extends JavaPlugin implements Listener {
                         }
                     }
                 } catch (Throwable e) {
-                    Bukkit.getLogger().info("[Webstats Debug] API profile failed: " + e.getMessage());
+                    if (debug) Bukkit.getLogger().info("[Webstats Debug] API profile failed: " + e.getMessage());
                 }
 
                 // 2. Fallback: try raw NBT parsing (for older items or specific formats)

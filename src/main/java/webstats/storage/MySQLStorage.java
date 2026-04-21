@@ -40,6 +40,7 @@ public class MySQLStorage implements StorageProvider {
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS player_stats (player_name VARCHAR(64) NOT NULL, placeholder_name TEXT, placeholder_value TEXT, placeholder_value_clean TEXT, placeholder_definer TEXT, placeholder_definer_clean TEXT, section_index INT, section_title TEXT, order_index INT, last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (player_name, section_index, order_index))");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS progressive_bars (player_name VARCHAR(64) NOT NULL, placeholder_name TEXT, placeholder_value TEXT, placeholder_max TEXT, placeholder_definer TEXT, order_index INT, last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (player_name, order_index))");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS player_inventories (player_name VARCHAR(64) NOT NULL, slot INT NOT NULL, item_type VARCHAR(255), item_amount INT, item_texture TEXT, item_tooltip TEXT, last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (player_name, slot))");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS player_profiles (player_name VARCHAR(64) PRIMARY KEY, held_slot INT DEFAULT 0, last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS player_searches (player_name VARCHAR(64) PRIMARY KEY, search_count INT DEFAULT 0)");
         }
     }
@@ -111,8 +112,20 @@ public class MySQLStorage implements StorageProvider {
                     ps.executeBatch();
                 }
             }
+
+            // 5. Profile Metadata (Held Slot)
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO player_profiles (player_name, held_slot) VALUES (?, ?) " +
+                    "ON DUPLICATE KEY UPDATE held_slot = ?")) {
+                ps.setString(1, p.name);
+                ps.setInt(2, p.heldSlot);
+                ps.setInt(3, p.heldSlot);
+                ps.executeUpdate();
+            }
+
             connection.commit();
             connection.setAutoCommit(true);
+            System.out.println("[webstats] Successfully saved profile: " + p.name);
         } catch (SQLException e) {
             try { if (connection != null) connection.rollback(); } catch (SQLException ignored) {}
             System.err.println("[webstats] MySQL saveProfile failed for " + p.name + ": " + e.getMessage());
@@ -128,6 +141,7 @@ public class MySQLStorage implements StorageProvider {
             updateTableUser(oldName, newName, "player_stats");
             updateTableUser(oldName, newName, "progressive_bars");
             updateTableUser(oldName, newName, "player_inventories");
+            updateTableUser(oldName, newName, "player_profiles");
             updateTableUser(oldName, newName, "player_searches");
         } catch (SQLException e) {
             e.printStackTrace();

@@ -10,6 +10,7 @@ public class PlayerProfile {
     public List<StatEntry> stats = new ArrayList<>();
     public List<BarEntry> bars = new ArrayList<>();
     public List<InventoryEntry> inventory = new ArrayList<>();
+    public int heldSlot;
 
     public PlayerProfile(String name) {
         this.name = name;
